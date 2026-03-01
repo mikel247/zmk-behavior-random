@@ -3,9 +3,6 @@
  *
  * SPDX-License-Identifier: MIT
  */
-
-
-
 #define DT_DRV_COMPAT zmk_behavior_magic_rng
 
 #include <zephyr/kernel.h>
