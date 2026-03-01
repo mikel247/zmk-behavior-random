@@ -1,3 +1,0 @@
-s/.*hid_listener_keycode/kp/p
-s/.*hid_\(un\)\?register_mod: //p
-s/.*leader[a-z_]*: //p
