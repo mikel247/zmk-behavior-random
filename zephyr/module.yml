@@ -1,6 +1,5 @@
 name: zmk-behavior-random
 build:
   cmake: .
-  kconfig: Kconfig
   settings:
     dts_root: .
