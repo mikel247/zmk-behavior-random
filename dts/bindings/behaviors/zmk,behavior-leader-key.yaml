@@ -1,14 +1,30 @@
-# Copyright (c) 2024 The ZMK Contributors
+# Copyright (c) 2024
 # SPDX-License-Identifier: MIT
 
-# dts/bindings/zmk,behavior-custom-random.yaml
-description: Custom Random Number String Generator
+description: |
+  ZMK RNG Typer behavior.
+  Uses the nRF52 hardware RNG (TRNG) to type random output.
 
-compatible: "zmk,behavior-custom-random"
+  Binding parameters:
+    param1 = mode
+      0 = DICE   → types "dN: X"  (param2 = sides, e.g. 6 / 8 / 10 / 12 / 20 / 100)
+      1 = INT    → types a raw integer in [0, param2)
+      2 = STRING → types a 16-char random string (param2 = charset, see below)
 
-include: behavior-cells.yaml
+    param2:
+      DICE mode  → number of die sides (2–∞, default 6)
+      INT  mode  → param2 ignored; types the full raw 32-bit RNG value (0–4294967295)
+      STRING mode:
+        0 = alphanumeric  a-z A-Z 0-9
+        1 = hex           0-9 a-f
+        2 = lowercase     a-z 0-9
+        3 = symbols       alphanumeric + !@#$%^&*()-_=+[]{}
+
+compatible: "zmk,behavior-rng-typer"
+
+include: zero-param-behavior.yaml
 
 properties:
-  bindings:
+  "#binding-cells":
     type: int
     const: 2
