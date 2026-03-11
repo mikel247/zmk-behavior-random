@@ -1,0 +1,8 @@
+name: zmk-rng-behavior
+
+build:
+  cmake: .
+  kconfig: Kconfig
+
+  settings:
+    dts_root: .
