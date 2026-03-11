@@ -1,0 +1,21 @@
+# Copyright (c) 2024
+# SPDX-License-Identifier: MIT
+
+config ZMK_BEHAVIOR_RNG_TYPER
+    bool "RNG Typer behavior (dice rolls, random ints, random strings)"
+    depends on ENTROPY_GENERATOR
+    help
+      Enables a ZMK behavior that uses the nRF52 hardware RNG to type:
+        - Dice rolls in dXX: N format
+        - Full raw 32-bit random integers
+        - Random 16-character strings with selectable charset
+
+config ZMK_RNG_TYPER_WAIT_MS
+    int "Delay in ms between key events when typing RNG output"
+    depends on ZMK_BEHAVIOR_RNG_TYPER
+    default 30
+    help
+      Time in milliseconds to sleep between each key press/release event.
+      Matches ZMK's macro default (CONFIG_ZMK_MACRO_DEFAULT_WAIT_MS = 30).
+      Increase to 50+ if characters are being dropped on lossy BLE connections.
+      Decrease to 15 if you find the typing noticeably slow (e.g. 16-char strings).
