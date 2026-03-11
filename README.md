@@ -96,7 +96,27 @@ CONFIG_ENTROPY_GENERATOR=y          # usually already on for nice!nano
 &rng_typer 2 2     /* lowercase + digits */
 &rng_typer 2 3     /* alphanumeric + symbols */
 ```
-
+* Behavior parameters (passed via keymap binding):
+ *   param1 encodes BOTH the mode and an optional "send Enter" flag:
+ *
+ *     Bits [3:0] = mode
+ *       0 = DICE   -> types "dN: XX" where N = param2 (sides)
+ *       1 = INT    -> types the full raw 32-bit RNG value (param2 ignored)
+ *       2 = STRING -> types a 16-char random string (param2 = charset selector)
+ *
+ *     Bit 7 (0x80) = send Enter after output
+ *       Add 0x80 to param1 to append an Enter keypress after typing.
+ *       Examples:
+ *         &rng_typer 0    20   -> d20: N        (no enter)
+ *         &rng_typer 0x80 20   -> d20: N <RET>  (with enter)
+ *         &rng_typer 1    0    -> 3849204817
+ *         &rng_typer 0x81 0    -> 3849204817 <RET>
+ *         &rng_typer 2    3    -> aK3!mZx9...
+ *         &rng_typer 0x82 3    -> aK3!mZx9... <RET>
+ *
+ *   param2 (mode=DICE)   = number of sides (e.g. 4, 6, 8, 10, 12, 20, 100)
+ *   param2 (mode=INT)    = ignored; always full uint32
+ *   param2 (mode=STRING) = charset: 0=alphanum, 1=hex, 2=lowercase, 3=alphanum+symbols
 ---
 
 ## Dice output format
