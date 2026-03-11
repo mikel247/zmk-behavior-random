@@ -24,13 +24,4 @@ description: |
 
 compatible: "zmk,behavior-rng-typer"
 
-include: behavior.yaml
-
-properties:
-  "#binding-cells":
-    type: int
-    const: 2
-
-binding-cells:
-  - param1
-  - param2
+include: two_param.yaml
