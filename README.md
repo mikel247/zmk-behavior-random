@@ -40,7 +40,7 @@ manifest:
   remotes:
     - name: zmkfirmware
       url-base: https://github.com/zmkfirmware
-    - name: yourname                        # ← change this
+    - name: mikel247                       # ← change this
       url-base: https://github.com/yourname
 
   projects:
