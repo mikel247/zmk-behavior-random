@@ -4,7 +4,7 @@
  *
  * ZMK Behavior: RNG Typer
  * Uses nRF52 hardware RNG (TRNG) to type random output via the ZMK
- * behavior queue — the same mechanism used by macros.
+ * behavior queue — identical to how macros work internally.
  *
  * param1 bits [3:0] = mode:
  *   0 = DICE   -> types "dN: XX" (param2 = sides)
@@ -15,10 +15,6 @@
  * param2 (DICE)   = sides e.g. 4/6/8/10/12/20/100
  * param2 (INT)    = ignored
  * param2 (STRING) = 0=alphanum  1=hex  2=lowercase  3=alphanum+symbols
- *
- * NOTE: For strings, add to your .conf:
- *   CONFIG_ZMK_BEHAVIORS_QUEUE_SIZE=128
- * The default of 64 is too small for a 16-char string with shifts.
  */
 
 #define DT_DRV_COMPAT zmk_behavior_rng_typer
@@ -26,10 +22,11 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/entropy.h>
 #include <zephyr/logging/log.h>
+#include <drivers/behavior.h>
 #include <zmk/behavior.h>
 #include <zmk/behavior_queue.h>
+#include <zmk/keymap.h>
 #include <zmk/keys.h>
-#include <dt-bindings/zmk/keys.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -75,59 +72,75 @@ static uint32_t rng_range(uint32_t bound) {
     return r % bound;
 }
 
-/* ── ASCII -> ZMK keycode ─────────────────────────────────────── 
- * ZMK key defines from dt-bindings/zmk/keys.h are already the
- * correct encoded values to pass as param1 to the key_press behavior.
- * LS(kc) applies the left-shift modifier encoding.
+/* ── ASCII -> ZMK HID usage ───────────────────────────────────── 
+ * ZMK_HID_USAGE(page, id) from zmk/keys.h produces the encoded
+ * value that &kp / key_press behavior expects as param1.
  */
-static uint32_t ascii_to_kc(char c) {
-    if (c >= 'a' && c <= 'z') return A + (c - 'a');
-    if (c >= 'A' && c <= 'Z') return LS(A + (c - 'A'));
-    if (c == '0') return N0;
-    if (c >= '1' && c <= '9') return N1 + (c - '1');
+static uint32_t ascii_to_hid(char c) {
+    if (c >= 'a' && c <= 'z')
+        return ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_A + (c - 'a'));
+    if (c >= 'A' && c <= 'Z')
+        return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_A + (c - 'A')));
+    if (c == '0')
+        return ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_0_AND_RIGHT_PARENTHESIS);
+    if (c >= '1' && c <= '9')
+        return ZMK_HID_USAGE(HID_USAGE_KEY,
+                             HID_USAGE_KEY_KEYBOARD_1_AND_EXCLAMATION + (c - '1'));
     switch (c) {
-        case ' ':  return SPACE;
-        case ':':  return LS(SEMI);
-        case ';':  return SEMI;
-        case '-':  return MINUS;
-        case '_':  return LS(MINUS);
-        case '!':  return LS(N1);
-        case '@':  return LS(N2);
-        case '#':  return LS(N3);
-        case '$':  return LS(N4);
-        case '%':  return LS(N5);
-        case '^':  return LS(N6);
-        case '&':  return LS(N7);
-        case '*':  return LS(N8);
-        case '(':  return LS(N9);
-        case ')':  return LS(N0);
-        case '+':  return LS(EQUAL);
-        case '=':  return EQUAL;
-        case '[':  return LBKT;
-        case ']':  return RBKT;
-        case '{':  return LS(LBKT);
-        case '}':  return LS(RBKT);
+        case ' ':  return ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_SPACEBAR);
+        case ':':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_SEMICOLON_AND_COLON));
+        case '-':  return ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_MINUS_AND_UNDERSCORE);
+        case '_':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_MINUS_AND_UNDERSCORE));
+        case '!':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_1_AND_EXCLAMATION));
+        case '@':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_2_AND_AT));
+        case '#':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_3_AND_HASH));
+        case '$':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_4_AND_DOLLAR));
+        case '%':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_5_AND_PERCENT));
+        case '^':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_6_AND_CARET));
+        case '&':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_7_AND_AMPERSAND));
+        case '*':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_8_AND_ASTERISK));
+        case '(':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_9_AND_LEFT_PARENTHESIS));
+        case ')':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_0_AND_RIGHT_PARENTHESIS));
+        case '+':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_EQUAL_AND_PLUS));
+        case '=':  return ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_EQUAL_AND_PLUS);
+        case '[':  return ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_LEFT_BRACKET_AND_LEFT_BRACE);
+        case ']':  return ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_RIGHT_BRACKET_AND_RIGHT_BRACE);
+        case '{':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_LEFT_BRACKET_AND_LEFT_BRACE));
+        case '}':  return LS(ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_RIGHT_BRACKET_AND_RIGHT_BRACE));
         default:   return 0;
     }
 }
 
 /* ── behavior queue helpers ───────────────────────────────────── */
 
-static void queue_kp(uint32_t position, uint32_t kc) {
-    if (kc == 0) return;
+/* Get the key_press behavior device — same node &kp references */
+static const struct device *kp_dev(void) {
+    return zmk_behavior_get_binding(DT_LABEL(DT_ALIAS(kp)));
+}
+
+static void queue_hid(uint32_t position, uint32_t hid_usage) {
+    if (hid_usage == 0) return;
+
+    const struct device *dev = zmk_behavior_get_binding("key_press");
+    if (!dev) {
+        LOG_ERR("key_press behavior not found");
+        return;
+    }
+
     struct zmk_behavior_binding binding = {
         .behavior_dev = "key_press",
-        .param1 = kc,
+        .param1 = hid_usage,
         .param2 = 0,
     };
-    zmk_behavior_queue_add(position, binding, true,  CONFIG_ZMK_MACRO_DEFAULT_TAP_MS);
-    zmk_behavior_queue_add(position, binding, false, CONFIG_ZMK_MACRO_DEFAULT_WAIT_MS);
+
+    zmk_behavior_queue_add(position, binding, true,
+                           CONFIG_ZMK_MACRO_DEFAULT_TAP_MS);
+    zmk_behavior_queue_add(position, binding, false,
+                           CONFIG_ZMK_MACRO_DEFAULT_WAIT_MS);
 }
 
 static void queue_str(uint32_t position, const char *s) {
-    while (*s) {
-        queue_kp(position, ascii_to_kc(*s++));
-    }
+    while (*s) queue_hid(position, ascii_to_hid(*s++));
 }
 
 static void queue_u32(uint32_t position, uint32_t n) {
@@ -163,7 +176,7 @@ static void do_string(uint32_t position, uint32_t charset_id) {
         default: charset = CHARSET_ALPHANUM;clen = sizeof(CHARSET_ALPHANUM)- 1; break;
     }
     for (int i = 0; i < 16; i++) {
-        queue_kp(position, ascii_to_kc(charset[rng_range(clen)]));
+        queue_hid(position, ascii_to_hid(charset[rng_range(clen)]));
     }
     LOG_DBG("RNG string queued (charset %u)", charset_id);
 }
@@ -182,6 +195,8 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
     bool     send_enter = (param1 & 0x80) != 0;
     uint32_t mode       =  param1 & 0x0F;
 
+    LOG_DBG("rng_typer pressed: mode=%u param2=%u enter=%d", mode, param2, send_enter);
+
     switch (mode) {
         case 0: do_dice(position, param2);   break;
         case 1: do_int(position);            break;
@@ -190,7 +205,8 @@ static int on_keymap_binding_pressed(struct zmk_behavior_binding *binding,
     }
 
     if (send_enter) {
-        queue_kp(position, ENTER);
+        queue_hid(position,
+            ZMK_HID_USAGE(HID_USAGE_KEY, HID_USAGE_KEY_KEYBOARD_RETURN_ENTER));
     }
 
     return ZMK_BEHAVIOR_OPAQUE;
